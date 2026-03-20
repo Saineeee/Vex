@@ -21,7 +21,7 @@ CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 # IMPORTANT FOR PRODUCTION: When you deploy to Railway and get a custom domain 
 # (e.g., https://my-bot.up.railway.app/), change this variable to match it!
 # You will also need to add the new URL to your Discord Developer Portal Redirects.
-REDIRECT_URI = "http://localhost:8000/" 
+REDIRECT_URI = "https://vex-24iz.onrender.com/" 
 
 # --- 1. INITIALIZE FASTAPI ---
 app = FastAPI()
