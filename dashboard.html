@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Configuration Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { discord: { main: '#313338', sidebar: '#2b2d31', deep: '#1e1f22', blurple: '#5865F2', green: '#23a559', red: '#da373c' } } } }
+        }
+    </script>
+</head>
+<body class="bg-discord-main text-gray-200 font-sans h-screen flex overflow-hidden">
+
+    <div id="login-screen" class="absolute inset-0 bg-discord-deep z-50 flex flex-col items-center justify-center">
+        <h1 class="text-4xl font-bold text-white mb-4">Bot Configuration Hub</h1>
+        <p class="text-gray-400 mb-8">Secure login required to configure server settings.</p>
+        <button onclick="loginWithDiscord()" class="bg-discord-blurple hover:bg-indigo-600 text-white font-bold py-3 px-8 rounded text-lg transition shadow-lg">Login with Discord</button>
+        <p id="loading-text" class="hidden text-discord-green mt-4 font-bold animate-pulse">Authenticating...</p>
+    </div>
+
+    <div id="dashboard-ui" class="hidden flex-1 flex h-full">
+        <div class="w-64 bg-discord-sidebar flex flex-col p-4 shadow-lg z-10">
+            <div class="flex items-center space-x-3 mb-8 pb-4 border-b border-gray-700">
+                <img id="user-avatar" src="" class="w-10 h-10 rounded-full bg-gray-700">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase font-bold">Admin</p>
+                    <p id="user-name" class="text-white font-bold truncate"></p>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <button onclick="switchTab('settings')" class="w-full text-left px-4 py-2 rounded transition bg-gray-800 text-white" id="btn-settings">⚙️ Server Settings</button>
+                <button onclick="switchTab('management')" class="w-full text-left px-4 py-2 rounded hover:bg-gray-700 hover:text-white transition" id="btn-management">🚨 Panic Controls</button>
+            </div>
+            <div class="mt-auto">
+                <button onclick="logout()" class="w-full text-left px-4 py-2 rounded text-red-400 hover:bg-red-500 hover:text-white transition">Logout</button>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col relative overflow-y-auto">
+            <div class="bg-discord-deep p-4 border-b border-gray-700 flex items-center space-x-4">
+                <div>
+                    <label class="text-xs text-gray-400 font-bold uppercase">Configure Server</label>
+                    <select id="global_guild_id" class="mt-1 block w-64 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-discord-blurple text-white"></select>
+                </div>
+            </div>
+
+            <div class="p-8">
+                <div id="toast" class="hidden mb-6 p-4 rounded bg-discord-green text-white font-semibold transition-all shadow-lg">Settings Saved!</div>
+
+                <div id="tab-settings" class="tab-content">
+                    <h2 class="text-2xl font-bold text-white mb-6">Database Configurations</h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-discord-sidebar p-6 rounded-lg shadow-md border border-gray-800">
+                            <h3 class="text-lg font-bold text-white mb-2">📝 Advanced Logging</h3>
+                            <input type="text" id="set_log_channel" placeholder="Log Channel ID" class="w-full mb-4 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm">
+                            <button onclick="updateSettings({log_channel_id: getVal('set_log_channel')})" class="w-full bg-discord-blurple hover:bg-indigo-600 text-white font-bold py-2 rounded">Save Log Channel</button>
+                        </div>
+                        <div class="bg-discord-sidebar p-6 rounded-lg shadow-md border border-gray-800">
+                            <h3 class="text-lg font-bold text-white mb-2">✨ Auto-Roles</h3>
+                            <input type="text" id="set_auto_role" placeholder="Auto-Role ID" class="w-full mb-4 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm">
+                            <button onclick="updateSettings({auto_role_id: getVal('set_auto_role')})" class="w-full bg-discord-blurple hover:bg-indigo-600 text-white font-bold py-2 rounded">Save Auto-Role</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-management" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-white mb-6">Panic Controls</h2>
+                    <div class="bg-discord-sidebar p-6 rounded-lg shadow-md border border-gray-800 w-1/2 border-l-4 border-l-discord-red">
+                        <h3 class="text-lg font-bold text-white mb-2">🔒 Channel Lockdown</h3>
+                        <input type="text" id="manage_channel_id" placeholder="Target Channel ID" class="w-full mb-4 bg-gray-900 border border-gray-700 rounded px-3 py-2 focus:border-discord-red text-white text-sm">
+                        <button onclick="updateSettings({lockdown_channel_id: getVal('manage_channel_id')})" class="w-full bg-discord-red hover:bg-red-700 text-white font-bold py-2 rounded">Engage Lockdown</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const REDIRECT_URI = encodeURIComponent("http://localhost:8000/");
+
+        async function loginWithDiscord() {
+            document.getElementById('loading-text').classList.remove('hidden');
+            try {
+                const res = await fetch("/api/config");
+                const config = await res.json();
+                if (!config.client_id) return alert("Backend missing Client ID.");
+                window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${config.client_id}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=identify%20guilds`;
+            } catch (e) { alert("Cannot connect to backend."); document.getElementById('loading-text').classList.add('hidden'); }
+        }
+
+        function logout() { localStorage.removeItem('bot_session'); window.location.href = "/"; }
+        function getVal(id) { return document.getElementById(id).value; }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('btn-settings').classList.remove('bg-gray-800', 'text-white');
+            document.getElementById('btn-management').classList.remove('bg-gray-800', 'text-white');
+            document.getElementById('btn-' + tabId).classList.add('bg-gray-800', 'text-white');
+        }
+
+        window.onload = async () => {
+            const code = new URLSearchParams(window.location.search).get('code');
+            const sessionData = JSON.parse(localStorage.getItem('bot_session'));
+
+            if (code) {
+                document.getElementById('loading-text').classList.remove('hidden');
+                try {
+                    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+                    const data = await res.json();
+                    if (data.status === "success") {
+                        localStorage.setItem('bot_session', JSON.stringify(data));
+                        window.history.replaceState({}, document.title, "/");
+                        unlockDashboard(data);
+                    } else alert("Auth failed.");
+                } catch (e) { alert("Server error."); }
+            } else if (sessionData) unlockDashboard(sessionData);
+        };
+
+        function unlockDashboard(data) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard-ui').classList.remove('hidden');
+            document.getElementById('user-name').innerText = data.user.username;
+            if (data.user.avatar) document.getElementById('user-avatar').src = `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png`;
+
+            const select = document.getElementById('global_guild_id');
+            select.innerHTML = data.admin_guilds.length ? "" : "<option value=''>No Admin Servers</option>";
+            data.admin_guilds.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.id; opt.text = g.name; select.appendChild(opt);
+            });
+        }
+
+        async function updateSettings(payload) {
+            const guildId = getVal('global_guild_id');
+            if (!guildId) return alert("Select a server first!");
+
+            payload.guild_id = parseInt(guildId);
+            if (payload.log_channel_id) payload.log_channel_id = parseInt(payload.log_channel_id);
+            if (payload.auto_role_id) payload.auto_role_id = parseInt(payload.auto_role_id);
+            if (payload.lockdown_channel_id) payload.lockdown_channel_id = parseInt(payload.lockdown_channel_id);
+
+            const res = await fetch("/api/settings/update", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            
+            if (res.ok) {
+                const toast = document.getElementById('toast');
+                toast.textContent = data.message;
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 3000);
+            } else alert("Error: " + data.detail);
+        }
+    </script>
+</body>
+</html>
