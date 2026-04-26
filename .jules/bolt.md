@@ -1,0 +1,3 @@
+## 2024-04-26 - HTTP Connection Pooling and Concurrent Independent API Requests
+**Learning:** Recreating `httpx.AsyncClient()` for every request prevents connection pooling, leading to TCP handshakes for every request and significantly increasing overhead. Furthermore, independent outgoing API requests (such as fetching user profiles and user guilds sequentially) artificially inflate latency due to waiting for one request to finish before starting the next.
+**Action:** Share a single `httpx.AsyncClient` across the application lifecycle to take advantage of connection pooling, and always use `asyncio.gather` for outgoing API requests that do not depend on each other's outcomes to drastically decrease request time.
