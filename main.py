@@ -108,13 +108,15 @@ async def verify_login(req: AuthRequest):
             
         access_token = token_json["access_token"]
         
-        # 2. Fetch User Profile
-        user_res = await client.get("https://discord.com/api/users/@me", headers={"Authorization": f"Bearer {access_token}"})
+        # 2. Fetch User Profile and User's Servers concurrently
+        # ⚡ Bolt Optimization: Parallelizing independent API requests with asyncio.gather
+        # Reduces login latency by executing both network calls simultaneously
+        user_res, guilds_res = await asyncio.gather(
+            client.get("https://discord.com/api/users/@me", headers={"Authorization": f"Bearer {access_token}"}),
+            client.get("https://discord.com/api/users/@me/guilds", headers={"Authorization": f"Bearer {access_token}"})
+        )
         
-        # 3. Fetch User's Servers
-        guilds_res = await client.get("https://discord.com/api/users/@me/guilds", headers={"Authorization": f"Bearer {access_token}"})
-        
-        # 4. Filter for servers where the user is an Administrator (0x8)
+        # 3. Filter for servers where the user is an Administrator (0x8)
         admin_guilds = [
             {"id": g["id"], "name": g["name"], "icon": g.get("icon")} 
             for g in guilds_res.json() 
