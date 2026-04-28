@@ -38,6 +38,7 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.settings = bot.db["settings"]
         self.temp_vcs = bot.db["temp_vcs"]
+        self._settings_cache = {}
 
     @app_commands.command(name="setuptempvc", description="[ADMIN] Setup temporary voice channels.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -47,14 +48,30 @@ class TempVoice(commands.Cog):
         dash = await interaction.guild.create_text_channel("🎛️・vc-dashboard", category=category)
         join_vc = await interaction.guild.create_voice_channel("➕ Join to Create", category=category)
 
-        await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}}, upsert=True)
+        settings_data = {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}
+        await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": settings_data}, upsert=True)
+
+        # Update cache
+        current = self._settings_cache.get(interaction.guild.id)
+        if isinstance(current, dict):
+            current.update(settings_data)
+        else:
+            self._settings_cache[interaction.guild.id] = settings_data
+
         await dash.send(embed=discord.Embed(title="VC Dashboard", description="Join ➕ Join to Create to get your own channel!"), view=TempVCControls(self.bot))
         await interaction.followup.send("System ready!")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
-        settings = await self.settings.find_one({"guild_id": member.guild.id})
+
+        guild_id = member.guild.id
+        if guild_id in self._settings_cache:
+            settings = self._settings_cache[guild_id]
+        else:
+            settings = await self.settings.find_one({"guild_id": guild_id})
+            self._settings_cache[guild_id] = settings
+
         if not settings or "temp_vc_join" not in settings: return
 
         if after.channel and after.channel.id == settings["temp_vc_join"]:
