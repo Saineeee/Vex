@@ -38,6 +38,8 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.settings = bot.db["settings"]
         self.temp_vcs = bot.db["temp_vcs"]
+        # ⚡ Bolt: Cache settings to prevent DB queries in high-frequency listeners
+        self._settings_cache = {}
 
     @app_commands.command(name="setuptempvc", description="[ADMIN] Setup temporary voice channels.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -48,13 +50,35 @@ class TempVoice(commands.Cog):
         join_vc = await interaction.guild.create_voice_channel("➕ Join to Create", category=category)
 
         await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}}, upsert=True)
+
+        # ⚡ Bolt: Update cache after writing to DB so listeners get fresh data immediately
+        if interaction.guild.id not in self._settings_cache:
+            # Fetch existing settings to ensure cache consistency with the database document
+            existing = await self.settings.find_one({"guild_id": interaction.guild.id})
+            self._settings_cache[interaction.guild.id] = existing or {}
+
+        self._settings_cache[interaction.guild.id]["temp_vc_join"] = join_vc.id
+        self._settings_cache[interaction.guild.id]["temp_vc_category"] = category.id
+
         await dash.send(embed=discord.Embed(title="VC Dashboard", description="Join ➕ Join to Create to get your own channel!"), view=TempVCControls(self.bot))
         await interaction.followup.send("System ready!")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
-        settings = await self.settings.find_one({"guild_id": member.guild.id})
+
+        # ⚡ Bolt: Use in-memory cache to skip DB query on voice state update
+        guild_id = member.guild.id
+        if guild_id not in self._settings_cache:
+            settings = await self.settings.find_one({"guild_id": guild_id})
+            if settings:
+                self._settings_cache[guild_id] = settings
+            else:
+                # Cache negative result temporarily or just return to avoid repeated missing queries
+                # We'll just cache an empty dict if not found
+                self._settings_cache[guild_id] = {}
+
+        settings = self._settings_cache.get(guild_id, {})
         if not settings or "temp_vc_join" not in settings: return
 
         if after.channel and after.channel.id == settings["temp_vc_join"]:
