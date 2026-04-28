@@ -25,9 +25,18 @@ REDIRECT_URI = "https://web-production-3a50e.up.railway.app/"
 
 # --- 1. INITIALIZE FASTAPI ---
 app = FastAPI()
+
+# Restrict CORS origins for security
+# Derives the primary allowed origin from REDIRECT_URI
+allowed_origins = [
+    REDIRECT_URI.rstrip("/"),
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 app.add_middleware(
     CORSMiddleware, 
-    allow_origins=["*"], 
+    allow_origins=allowed_origins,
     allow_methods=["*"], 
     allow_headers=["*"]
 )
