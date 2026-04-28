@@ -22,7 +22,7 @@ class AITools(commands.Cog):
                 messages=[{"role": "user", "content": f"Summarize this chat in 3 bullet points:\n{chr(10).join(messages)}"}]
             )
             await interaction.followup.send(embed=discord.Embed(title="Summary", description=res.choices[0].message.content, color=discord.Color.purple()))
-        except Exception as e:
+        except Exception:
             await interaction.followup.send("API Error.")
 
 async def setup(bot):
