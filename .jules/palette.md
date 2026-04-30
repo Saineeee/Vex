@@ -1,0 +1,3 @@
+## 2024-06-25 - Fix Dashboard Label Accessibility
+**Learning:** The dashboard UI historically used `<h3>` tags above inputs instead of semantic form labels. This anti-pattern breaks accessibility by preventing screen readers from properly associating instructions with form fields.
+**Action:** Replaced `<h3>` tags with `<label>` tags and added `for` attributes that match the `id` of their respective `<input>` elements. Also ensured that the labels maintain layout structure by using the `block` utility class.
