@@ -143,15 +143,30 @@
             if (payload.auto_role_id) payload.auto_role_id = parseInt(payload.auto_role_id);
             if (payload.lockdown_channel_id) payload.lockdown_channel_id = parseInt(payload.lockdown_channel_id);
 
-            const res = await fetch("/api/settings/update", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const data = await res.json();
+            const sessionData = JSON.parse(localStorage.getItem('bot_session'));
+            if (!sessionData || !sessionData.access_token) {
+                return alert("You must be logged in to update settings.");
+            }
+
+            const res = await fetch("/api/settings/update", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionData.access_token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
             if (res.ok) {
+                const data = await res.json();
                 const toast = document.getElementById('toast');
                 toast.textContent = data.message;
                 toast.classList.remove('hidden');
                 setTimeout(() => toast.classList.add('hidden'), 3000);
-            } else alert("Error: " + data.detail);
+            } else {
+                const data = await res.json();
+                alert("Error: " + data.detail);
+            }
         }
     </script>
 </body>
