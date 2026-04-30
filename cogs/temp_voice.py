@@ -38,6 +38,14 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.settings = bot.db["settings"]
         self.temp_vcs = bot.db["temp_vcs"]
+        self._settings_cache = {}
+
+    async def get_settings(self, guild_id):
+        # ⚡ Bolt: Use in-memory negative caching to prevent redundant DB queries
+        if guild_id not in self._settings_cache:
+            data = await self.settings.find_one({"guild_id": guild_id})
+            self._settings_cache[guild_id] = data if data else {}
+        return self._settings_cache[guild_id]
 
     @app_commands.command(name="setuptempvc", description="[ADMIN] Setup temporary voice channels.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -47,14 +55,20 @@ class TempVoice(commands.Cog):
         dash = await interaction.guild.create_text_channel("🎛️・vc-dashboard", category=category)
         join_vc = await interaction.guild.create_voice_channel("➕ Join to Create", category=category)
 
+        # ⚡ Bolt: Sync cache with DB updates
         await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}}, upsert=True)
+        cached_settings = await self.get_settings(interaction.guild.id)
+        cached_settings["temp_vc_join"] = join_vc.id
+        cached_settings["temp_vc_category"] = category.id
+
         await dash.send(embed=discord.Embed(title="VC Dashboard", description="Join ➕ Join to Create to get your own channel!"), view=TempVCControls(self.bot))
         await interaction.followup.send("System ready!")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
-        settings = await self.settings.find_one({"guild_id": member.guild.id})
+        # ⚡ Bolt: Read from memory instead of DB per-event
+        settings = await self.get_settings(member.guild.id)
         if not settings or "temp_vc_join" not in settings: return
 
         if after.channel and after.channel.id == settings["temp_vc_join"]:
