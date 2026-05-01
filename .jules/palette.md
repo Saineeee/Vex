@@ -1,0 +1,3 @@
+## 2024-05-24 - Replace h3 with label for semantic forms
+**Learning:** Found an anti-pattern in the dashboard UI where `<h3>` tags were being used purely for visual styling to label input fields. This breaks screen reader functionality because the inputs lose their accessible name, making the forms difficult or impossible to navigate for visually impaired users.
+**Action:** Always ensure that form structures use proper semantic `<label>` elements with matching `for` attributes that correspond to the input's `id`. For visual styling that mimics headings, apply classes (like `block text-lg font-bold`) directly to the `<label>` rather than using incorrect semantic HTML.
