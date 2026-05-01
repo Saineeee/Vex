@@ -1,0 +1,4 @@
+## 2024-05-01 - Missing Authentication on API Endpoints
+**Vulnerability:** The `/api/settings/update` endpoint was accessible to any user. It failed to verify the user's identity or authorization status to manage the target `guild_id`. This effectively allowed anyone to bypass frontend controls and manipulate database settings and Discord channel permissions (e.g., Lockdown).
+**Learning:** Endpoints that modify server or application state must strictly validate both authentication (who the user is) and authorization (whether they have permission to act on the target resource). The absence of backend checks nullifies frontend UI protections.
+**Prevention:** Implement mandatory authentication checks for all API endpoints that handle sensitive actions. Always re-verify user permissions (e.g., Administrator status) against the source of truth (Discord API or Database) using their secure access token on every request.
