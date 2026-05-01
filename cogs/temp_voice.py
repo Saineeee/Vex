@@ -38,6 +38,8 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.settings = bot.db["settings"]
         self.temp_vcs = bot.db["temp_vcs"]
+        # In-memory cache for settings to reduce DB queries on high-frequency events
+        self._settings_cache = {}
 
     @app_commands.command(name="setuptempvc", description="[ADMIN] Setup temporary voice channels.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -47,14 +49,33 @@ class TempVoice(commands.Cog):
         dash = await interaction.guild.create_text_channel("🎛️・vc-dashboard", category=category)
         join_vc = await interaction.guild.create_voice_channel("➕ Join to Create", category=category)
 
+        # Update DB
         await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}}, upsert=True)
+
+        # Sync Cache
+        guild_id = interaction.guild.id
+        if guild_id not in self._settings_cache:
+            db_settings = await self.settings.find_one({"guild_id": guild_id})
+            self._settings_cache[guild_id] = db_settings if db_settings else {}
+
+        self._settings_cache[guild_id]["temp_vc_join"] = join_vc.id
+        self._settings_cache[guild_id]["temp_vc_category"] = category.id
+
         await dash.send(embed=discord.Embed(title="VC Dashboard", description="Join ➕ Join to Create to get your own channel!"), view=TempVCControls(self.bot))
         await interaction.followup.send("System ready!")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
-        settings = await self.settings.find_one({"guild_id": member.guild.id})
+
+        guild_id = member.guild.id
+        # Use cache to avoid DB query on every single voice state update
+        if guild_id not in self._settings_cache:
+            db_settings = await self.settings.find_one({"guild_id": guild_id})
+            # Use negative caching ({}) if settings don't exist
+            self._settings_cache[guild_id] = db_settings if db_settings else {}
+
+        settings = self._settings_cache[guild_id]
         if not settings or "temp_vc_join" not in settings: return
 
         if after.channel and after.channel.id == settings["temp_vc_join"]:
