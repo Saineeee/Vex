@@ -1,0 +1,4 @@
+## 2026-05-01 - Missing Authentication on Settings API
+**Vulnerability:** The `/api/settings/update` endpoint in FastAPI was completely unauthenticated and unvalidated. Anyone could send a POST request with an arbitrary `guild_id` to lock down channels or change server settings for any server the bot was in.
+**Learning:** The authentication logic was only applied to the `/api/auth/login` endpoint, leaving the actual action-performing endpoints exposed. The frontend relied entirely on the UI being hidden, assuming the backend was secure.
+**Prevention:** Always implement authorization validation on backend action endpoints, ensuring the user sending the request has the correct permissions for the specific resource they are trying to modify. Return the `access_token` to the frontend and require it via an `Authorization: Bearer <token>` header for all protected API calls.
