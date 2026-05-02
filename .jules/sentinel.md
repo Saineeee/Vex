@@ -1,0 +1,4 @@
+## 2026-05-02 - Fix Unauthenticated /api/settings/update Endpoint
+**Vulnerability:** The `/api/settings/update` endpoint lacked authentication and authorization checks, allowing anyone to modify a Discord server's settings or invoke lockdown commands by sending an unauthenticated POST request containing a known `guild_id`.
+**Learning:** Backend API endpoints used by web dashboards must validate the caller's authorization token instead of trusting the request payload, especially when modifying server configurations.
+**Prevention:** Always require a valid OAuth2 Bearer token on backend API routes that perform privileged actions. Verify the token against the relevant identity provider (Discord API) to ensure the caller has explicit permission (e.g., Administrator privileges `0x8`) for the targeted resource (`guild_id`) before processing the request.
