@@ -1,0 +1,3 @@
+## 2024-05-24 - Database Optimization in High-Frequency Discord Events
+**Learning:** High-frequency event listeners like `on_voice_state_update` querying the database directly for settings can cause severe bottlenecks, especially when the database result is often empty. Repeated empty queries waste resources.
+**Action:** Implement an in-memory dictionary cache (`_settings_cache`) on the cog to store database settings. Use negative caching (storing `{}` or `None` on empty results) to avoid repeated database lookups for missing records. Make sure to synchronize this cache during relevant command-based updates, fetching existing settings if absent before mutating.
