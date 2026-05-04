@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -121,11 +121,31 @@ async def verify_login(req: AuthRequest):
             if (int(g["permissions"]) & 0x8) == 0x8
         ]
         
-        return {"status": "success", "user": user_res.json(), "admin_guilds": admin_guilds}
+        return {"status": "success", "user": user_res.json(), "admin_guilds": admin_guilds, "access_token": access_token}
 
 @app.post("/api/settings/update")
-async def api_update_settings(settings: SettingsUpdate):
+async def api_update_settings(settings: SettingsUpdate, request: Request):
     """Handles updates sent from the web dashboard."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    access_token = auth_header.split(" ")[1]
+
+    async with httpx.AsyncClient() as client:
+        guilds_res = await client.get("https://discord.com/api/users/@me/guilds", headers={"Authorization": f"Bearer {access_token}"})
+        if guilds_res.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        guilds = guilds_res.json()
+        has_admin = any(
+            g["id"] == str(settings.guild_id) and (int(g["permissions"]) & 0x8) == 0x8
+            for g in guilds
+        )
+
+        if not has_admin:
+            raise HTTPException(status_code=403, detail="Forbidden: You are not an administrator of this server.")
+
     update_data = {}
     if settings.log_channel_id: update_data["log_channel_id"] = settings.log_channel_id
     if settings.auto_role_id: update_data["auto_role_id"] = settings.auto_role_id

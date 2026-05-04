@@ -1,0 +1,4 @@
+## 2026-05-04 - Missing Authentication on Admin API Endpoint
+**Vulnerability:** The `/api/settings/update` endpoint, which modified critical bot database configurations and initiated admin actions (like server lockdowns), lacked authentication and authorization checks, allowing any external unauthenticated request to modify settings or perform administrative actions on any server by guessing or supplying a `guild_id`.
+**Learning:** The frontend's reliance on localStorage state for UI visibility led to a false sense of security, assuming hidden UI meant protected APIs. The backend endpoint trusted incoming payloads blindly.
+**Prevention:** All protected FastAPI endpoints must explicitly extract the `Authorization` header and validate the Bearer token by making a server-side request to the Discord API (e.g., `https://discord.com/api/users/@me/guilds`) to confirm both the token's validity and the user's specific administrative permissions (0x8) in the target guild.

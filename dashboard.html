@@ -138,12 +138,22 @@
             const guildId = getVal('global_guild_id');
             if (!guildId) return alert("Select a server first!");
 
+            const sessionData = JSON.parse(localStorage.getItem('bot_session'));
+            if (!sessionData || !sessionData.access_token) return alert("You are not logged in!");
+
             payload.guild_id = parseInt(guildId);
             if (payload.log_channel_id) payload.log_channel_id = parseInt(payload.log_channel_id);
             if (payload.auto_role_id) payload.auto_role_id = parseInt(payload.auto_role_id);
             if (payload.lockdown_channel_id) payload.lockdown_channel_id = parseInt(payload.lockdown_channel_id);
 
-            const res = await fetch("/api/settings/update", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const res = await fetch("/api/settings/update", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionData.access_token}`
+                },
+                body: JSON.stringify(payload)
+            });
             const data = await res.json();
             
             if (res.ok) {
