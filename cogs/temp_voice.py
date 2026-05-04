@@ -38,6 +38,7 @@ class TempVoice(commands.Cog):
         self.bot = bot
         self.settings = bot.db["settings"]
         self.temp_vcs = bot.db["temp_vcs"]
+        self._settings_cache = {}
 
     @app_commands.command(name="setuptempvc", description="[ADMIN] Setup temporary voice channels.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -48,13 +49,27 @@ class TempVoice(commands.Cog):
         join_vc = await interaction.guild.create_voice_channel("➕ Join to Create", category=category)
 
         await self.settings.update_one({"guild_id": interaction.guild.id}, {"$set": {"temp_vc_join": join_vc.id, "temp_vc_category": category.id}}, upsert=True)
+
+        # Update cache
+        if interaction.guild.id not in self._settings_cache or not self._settings_cache[interaction.guild.id]:
+            db_settings = await self.settings.find_one({"guild_id": interaction.guild.id})
+            self._settings_cache[interaction.guild.id] = db_settings or {}
+        else:
+            self._settings_cache[interaction.guild.id]["temp_vc_join"] = join_vc.id
+            self._settings_cache[interaction.guild.id]["temp_vc_category"] = category.id
+
         await dash.send(embed=discord.Embed(title="VC Dashboard", description="Join ➕ Join to Create to get your own channel!"), view=TempVCControls(self.bot))
         await interaction.followup.send("System ready!")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
-        settings = await self.settings.find_one({"guild_id": member.guild.id})
+
+        if member.guild.id not in self._settings_cache:
+            db_settings = await self.settings.find_one({"guild_id": member.guild.id})
+            self._settings_cache[member.guild.id] = db_settings or {}
+
+        settings = self._settings_cache[member.guild.id]
         if not settings or "temp_vc_join" not in settings: return
 
         if after.channel and after.channel.id == settings["temp_vc_join"]:
