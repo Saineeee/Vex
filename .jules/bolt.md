@@ -1,0 +1,3 @@
+## 2024-06-11 - Connection Pooling and Concurrent I/O
+**Learning:** Instantiating `httpx.AsyncClient()` on every request creates unnecessary TLS/TCP handshake overhead, and sequential HTTP calls add up to slow response times. This was particularly evident in the Discord OAuth2 login flow where the backend acts as a proxy for multiple Discord API requests.
+**Action:** Establish a shared `httpx.AsyncClient` tied to the main application lifecycle (e.g., bot instance) to reuse connections. Furthermore, utilize `asyncio.gather()` for independent API calls (like fetching user profile and guilds) to significantly reduce the overall request duration.
